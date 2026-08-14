@@ -18,4 +18,5 @@ build/
 dist/
 .venv/
 venv/
+.venvtest/
 .pytest_cache/
