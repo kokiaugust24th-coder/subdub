@@ -1,0 +1,47 @@
+name: Publish to PyPI
+
+# GitHubでリリースを作成したときだけ動く。
+# Trusted Publishing (OIDC) を使うので、APIトークンをSecretsに保存する必要がない。
+#
+# 事前に一度だけ PyPI 側で設定が必要:
+#   https://pypi.org/manage/account/publishing/
+#     PyPI Project Name : subdub
+#     Owner             : <GitHubユーザー名>
+#     Repository name   : subdub
+#     Workflow name     : publish.yml
+#     Environment name  : pypi
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pipx run build
+      - run: pipx run twine check dist/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/subdub
+    permissions:
+      id-token: write        # Trusted Publishing に必要
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1

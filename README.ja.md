@@ -40,8 +40,14 @@ subdub は問題を2つに分けます。
 ## インストール
 
 ```bash
-pip install subdub[all]      # YouTube URL対応（yt-dlp込み）
+pip install "subdub[all]"    # YouTube URL対応（yt-dlp込み）
 pip install subdub           # 字幕ファイルのみ
+```
+
+開発版を直接入れる場合:
+
+```bash
+pip install "subdub[all] @ git+https://github.com/kokiaugust24th-coder/subdub.git"
 ```
 
 Python 3.10以上。Windows / macOS / Linux で動きます。

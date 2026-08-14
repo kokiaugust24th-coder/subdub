@@ -37,8 +37,8 @@ all = ["yt-dlp>=2024.1.1"]
 subdub = "subdub.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/yourname/subdub"
-Issues = "https://github.com/yourname/subdub/issues"
+Homepage = "https://github.com/kokiaugust24th-coder/subdub"
+Issues = "https://github.com/kokiaugust24th-coder/subdub/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/subdub"]

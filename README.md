@@ -40,8 +40,14 @@ Short audio is never stretched to fill its slot. A subtitle's time slot is a *de
 ## Install
 
 ```bash
-pip install subdub[all]      # includes yt-dlp for YouTube URLs
+pip install "subdub[all]"    # includes yt-dlp for YouTube URLs
 pip install subdub           # subtitle files only
+```
+
+Or install the latest development version straight from GitHub:
+
+```bash
+pip install "subdub[all] @ git+https://github.com/kokiaugust24th-coder/subdub.git"
 ```
 
 Requires Python 3.10+. Works on Windows, macOS, and Linux.
