@@ -1,166 +1,313 @@
 # subdub
 
-字幕から、動画にサンプル単位で同期する吹き替え音声を作ります。長尺でもズレが蓄積しません。
+[![CI](https://github.com/kokiaugust24th-coder/subdub/actions/workflows/ci.yml/badge.svg)](https://github.com/kokiaugust24th-coder/subdub/actions/workflows/ci.yml)
+[![Python](https://img.shields.io/badge/python-3.10+-blue)](https://www.python.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
+**外国語の動画を、日本語音声で見られるようにするツールです。**
+
+字幕から音声を作り、動画にぴったり合わせて再生します。字幕を目で追わずに済みます。
 
 *[English README](README.md)*
 
+---
+
+## 30秒で試す
+
 ```bash
-pip install subdub[all]
+pip install "subdub[all]"
+
 subdub dub "https://www.youtube.com/watch?v=VIDEO_ID" --lang ja --serve
 ```
 
-このコマンド一つで、字幕の取得・音声合成・尺合わせ・プレイヤー生成・ブラウザ起動まで行います。動画はミュートされ、生成した音声が同期再生されます。
+これだけです。ブラウザが開いて、動画が日本語音声で再生されます。
+
+<details>
+<summary>実行中はこんな表示になります（クリックで展開）</summary>
+
+```
+字幕を取得中（ja）...
+  VIDEO_ID.ja.srt
+字幕 319 キュー → 145 ブロック
+エンジン: edge / ja-JP-NanamiNeural
+  音声合成 [████████████████████████] 145/145
+  尺合わせ・配置 ...
+
+  長さ            : 16.8 分（145 ブロック）
+  ポーズ圧縮で吸収: 57.0 秒
+  WSOLA圧縮       : 96/145 （平均 1.23倍 / 最大 1.60倍）
+  枠に収まらず    : 5 ブロック（最大 0.53 秒超過）
+
+  音声      : out\dub.wav
+  レポート  : out\report.csv
+  プレイヤー: out\player.html
+
+  http://localhost:8000/player.html
+```
+
+</details>
+
+> **いきなり全部作らないでください。** 長い動画は数分かかります。まず下の「試聴」で
+> 声を確かめてから本番を回すのがおすすめです。
 
 ---
 
-## 何を解決するのか
+## よくある使い方
 
-素朴に作ると破綻します。字幕1行ずつ合成して繋ぐと、訳文の尺が原語と違うぶん、長引いた行が次を押し出します。10分も経てば数十秒ずれます。
+### まず声を試聴する（推奨）
 
-subdub は問題を2つに分けます。
-
-**開始位置** — 各ブロックを必ず字幕の絶対タイムコードに書き込みます。前が何秒溢れても次は定刻に始まるので、**誤差が伝播する経路自体が存在しません**。補正しているのではなく、構造的に起こり得ません。
-
-**長さ** — 劣化の少ない順に3段階で枠に収めます。
-
-| 段階 | 手法 | 劣化 |
-|---|---|---|
-| 1 | 前後の無音をトリム | なし |
-| 2 | **文中のポーズを優先的に圧縮** | ほぼなし |
-| 3 | **WSOLA** で残りを吸収 | 圧縮率に比例 |
-
-肝は段階2です。無音を削るのは音声本体を潰すより遥かに聞こえません。先にここで稼ぐことでWSOLAの圧縮率を1.0付近に保て、アーティファクトが最小になります。
-
-実際の17分の動画では、ポーズ圧縮だけで**57秒**を吸収し、平均圧縮率は1.23倍に収まりました。
-
-なお音声が枠より短い場合、引き伸ばしません。字幕の枠は「締切」であって「埋めるべき尺」ではないからです。
-
----
-
-## インストール
+冒頭90秒だけ作ります。1分もかかりません。
 
 ```bash
-pip install "subdub[all]"    # YouTube URL対応（yt-dlp込み）
-pip install subdub           # 字幕ファイルのみ
+subdub dub "動画URL" --lang ja --range 0:00-1:30 -o preview.wav
 ```
 
-開発版を直接入れる場合:
+`out/preview.wav` を再生して、声と読み方が許容できるか確認してください。
+
+### 声を変える
 
 ```bash
-pip install "subdub[all] @ git+https://github.com/kokiaugust24th-coder/subdub.git"
+subdub voices --lang ja        # 使える声を一覧
+subdub dub "動画URL" --voice ja-JP-KeitaNeural   # 男性の声にする
 ```
 
-Python 3.10以上。Windows / macOS / Linux で動きます。
+日本語は `ja-JP-NanamiNeural`（女性・既定）と `ja-JP-KeitaNeural`（男性）が使えます。
 
-既定の `edge` バックエンドは Microsoft Edge のニューラル音声を使います。無料・APIキー不要・全OS対応ですが、**合成時にテキストがMicrosoftのサーバへ送られます**。完全オフラインが必要なら `--backend sapi`（Windows標準のSAPI5、音質は大きく劣ります）。
-
----
-
-## 使い方
-
-### YouTubeのURLから
-
-```bash
-subdub dub "https://www.youtube.com/watch?v=VIDEO_ID" --lang ja --serve
-```
-
-先に利用可能な字幕を確認できます。
-
-```bash
-subdub langs "https://www.youtube.com/watch?v=VIDEO_ID"
-```
-
-人手翻訳の字幕を自動的に優先します。機械翻訳より質が高いことが多いためです。
-
-### 字幕ファイルから
+### 手元の字幕ファイルから作る
 
 ```bash
 subdub dub movie.ja.srt --video-id VIDEO_ID
 subdub serve out
 ```
 
-`.srt` / `.vtt` / YouTube `.json3` に対応。
+`.srt` `.vtt` `.json3` に対応しています。
 
-### まず試聴する
+### あとでもう一度見る
 
-長編は数分かかります。冒頭だけ作って音質を確かめてください。
-
-```bash
-subdub dub movie.ja.srt --range 0:00-1:30 -o preview.wav
-```
-
-### 音声を選ぶ
+一度作れば、次からは再生するだけです。
 
 ```bash
-subdub voices --lang ja
-subdub dub movie.srt --voice ja-JP-KeitaNeural
+subdub serve out
 ```
 
-### 同期を検証する
+### 字幕があるか先に調べる
+
+```bash
+subdub langs "動画URL"
+```
+
+```
+人手翻訳（推奨・機械翻訳より質が高いことが多い）:
+  en, ja, ko, zh
+
+自動生成:
+  af, ak, am, ar, ...
+```
+
+人手翻訳があればそちらが自動で使われます。
+
+---
+
+## コマンド早見表
+
+| やりたいこと | コマンド |
+|---|---|
+| 動画を吹き替える | `subdub dub "URL" --lang ja --serve` |
+| 作ったものを再生する | `subdub serve out` |
+| 声の一覧を見る | `subdub voices --lang ja` |
+| 字幕の言語を調べる | `subdub langs "URL"` |
+| 同期の精度を測る | `subdub dub ... --verify` |
+
+---
+
+## 困ったときは
+
+<details open>
+<summary><b>字幕が見つからないと言われる</b></summary>
+
+その言語の字幕が動画に無い可能性があります。まず確認してください。
+
+```bash
+subdub langs "動画URL"
+```
+
+一覧に無ければ、別の言語を `--lang` に指定するか、自分で字幕ファイルを用意します。
+</details>
+
+<details>
+<summary><b>単語の読み方が間違っている</b></summary>
+
+専門用語や固有名詞はニューラル音声でも読み間違えます。辞書で直せます。
+
+自分の辞書ファイルを作ります。
+
+```json
+{
+  "literal": {
+    "導関数": "どうかんすう",
+    "dx": "ディーエックス"
+  }
+}
+```
+
+```bash
+subdub dub "URL" --dict mydict.json
+```
+
+`literal` は単純置換、`regex` は正規表現置換です。長い語から優先して置換されます。
+</details>
+
+<details>
+<summary><b>プレイヤーを開いても音が出ない・シークすると音がズレる</b></summary>
+
+`player.html` をダブルクリックで開いたり、`python -m http.server` で配信していませんか。
+どちらも動きません。**必ず `subdub serve` を使ってください。**
+
+- ダブルクリック（`file://`）→ YouTubeの再生機能が動作しません
+- `python -m http.server` → HTTP Range に非対応で、音声のシークができません
+
+```bash
+subdub serve out
+```
+</details>
+
+<details>
+<summary><b>音声が早口すぎる／聞き取りにくい</b></summary>
+
+日本語訳が原語より長い区間では、枠に収めるため音声を圧縮しています。
+圧縮率を下げると聞きやすくなりますが、その分はみ出します。
+
+```bash
+subdub dub "URL" --max-compress 1.3     # 既定は1.6。下げるほど自然
+```
+
+実行後のサマリで「平均1.3倍」を超えていたら、その字幕は情報密度が高すぎます。
+</details>
+
+<details>
+<summary><b>音量が小さい／大きい</b></summary>
+
+```bash
+subdub dub "URL" --target-rms 0.15      # 既定は0.10。上げると大きくなる
+```
+
+プレイヤー画面の音量スライダーでも調整できます。
+</details>
+
+<details>
+<summary><b>ネットにつながらない環境で使いたい</b></summary>
+
+Windowsなら標準搭載の音声でオフライン生成できます。ただし**音質は大きく落ちます**
+（古い世代のエンジンのため、抑揚が平坦で読み間違いも増えます）。
+
+```bash
+subdub dub movie.srt --backend sapi
+```
+
+macOS / Linux にはオフライン用のバックエンドがまだありません。
+</details>
+
+<details>
+<summary><b>合成が途中で失敗する</b></summary>
+
+既定の `edge` バックエンドはネットワークを使います。接続を確認してください。
+自動で3回まで再試行します。
+
+音声名を間違えている可能性もあります。`subdub voices` で正しい名前を確認してください。
+</details>
+
+---
+
+## 仕組み（興味があれば）
+
+素朴に作ると必ず失敗します。字幕1行ずつ音声にして順番に繋ぐと、訳文の尺が原語と違うぶん、
+長引いた行が次を押し出します。**10分後には数十秒ずれます。**
+
+subdub は問題を2つに分けて解きます。
+
+### 開始位置は絶対にずらさない
+
+各ブロックを字幕のタイムコード位置に直接書き込みます。前のブロックが何秒溢れても、
+次は定刻に始まります。**誤差が伝播する経路そのものが存在しません。**
+補正しているのではなく、構造的に起こり得ません。
+
+### 長さは劣化の少ない順に詰める
+
+| 段階 | 手法 | 劣化 |
+|---|---|---|
+| 1 | 前後の無音をトリム | なし |
+| 2 | **文中のポーズを圧縮** | ほぼなし |
+| 3 | **WSOLA** で残りを吸収 | 圧縮率に比例 |
+
+肝は段階2です。無音を削るのは音声本体を潰すより遥かに聞こえません。
+先にここで稼ぐことで、WSOLAの圧縮率を1.0付近に保てます。
+
+実際の17分の動画では、**ポーズ圧縮だけで57秒を吸収**し、平均圧縮率は1.23倍に収まりました。
+
+なお音声が枠より短くても引き伸ばしません。字幕の枠は「締切」であって
+「埋めるべき尺」ではないからです。
+
+### 検証できる
 
 ```bash
 subdub dub movie.srt --verify
 ```
 
-各ブロックの音声をマスタートラックと相互相関させ、実際に何サンプル目に置かれたかを測ります。閾値による立ち上がり検出と違い、**語頭の音素に左右されません**（破裂音は鋭く、無声摩擦音は緩やかに立ち上がるため、閾値検出では実際にはズレていなくても数十msの誤差に見えてしまいます）。
+```
+配置検証  : PASS  最大ズレ 0.000 ms （145 ブロック）
+```
 
-期待される出力: `PASS  最大ズレ 0.000 ms`
+各ブロックの音声をマスタートラックと相互相関させ、実際に何サンプル目に置かれたかを
+直接測ります。語頭の音素に左右されない測り方です（破裂音は鋭く、無声摩擦音は
+緩やかに立ち上がるため、音量の閾値で測ると実際はズレていなくても誤差に見えます）。
 
 ---
 
-## コマンド
+## オプション一覧
 
-| コマンド | 用途 |
-|---|---|
-| `subdub dub <url\|file>` | 吹き替え音声を生成 |
-| `subdub serve [dir]` | 生成済みプレイヤーを配信 |
-| `subdub voices [--lang ja]` | 利用可能な音声を一覧 |
-| `subdub langs <url>` | 動画の字幕言語を調べる |
-| `subdub verify <wav> <fitted>` | 配置精度を検証 |
-
-### `dub` の主なオプション
+<details>
+<summary>クリックで展開</summary>
 
 | オプション | 既定 | 意味 |
 |---|---|---|
+| `--lang` | `ja` | 字幕の言語コード |
+| `-o, --out` | `dub.wav` | 出力音声のファイル名 |
+| `--outdir` | `out` | 出力先ディレクトリ |
 | `--backend` | `edge` | `edge`（ニューラル）/ `sapi`（オフライン・Windows） |
-| `--voice` | バックエンド毎 | 音声名 |
-| `--max-compress` | `1.6` | WSOLA最大圧縮率。上げるほど収まるが聞き苦しくなる |
-| `--target-rms` | `0.10` | ブロック間で揃える音量 |
-| `--fade-ms` | `8.0` | 境界フェード長。クリック音の除去 |
+| `--voice` | 自動 | 音声名 |
+| `--serve` | — | 生成後そのまま配信してブラウザを開く |
+| `--port` | `8000` | 配信ポート |
+| `--verify` | — | 生成後に配置精度を検証 |
+| `--max-compress` | `1.6` | 最大圧縮率。下げると自然、上げると枠に収まる |
+| `--target-rms` | `0.10` | 音量 |
+| `--fade-ms` | `8.0` | 境界フェード長（クリック音の除去） |
 | `--merge-gap` | `0.35` | この間隔以内の字幕を1文に連結 |
+| `--max-block` | `12.0` | 連結後の1ブロック最大長 |
 | `--range` | — | 時間範囲を限定 例 `1:00-2:30` |
 | `--dict` | 同梱辞書 | 発音辞書 |
+| `--report` | `report.csv` | 同期レポート |
+
+</details>
 
 ---
 
-## 発音辞書
+## インストール
 
-ニューラルTTSでも専門用語や固有名詞は読み間違えます。日本語は特に顕著です（漢字の読みが文脈依存で曖昧なため）。**YouTubeの自動吹き替えには読みを直す手段がありません**が、subdub にはあります。
-
-```json
-{
-  "regex":   [["\\[[^\\]]*\\]", ""],
-              ["([a-zA-Z])\\s*\\^\\s*2", "\\1の2乗"]],
-  "literal": {"dx": "ディーエックス", "導関数": "どうかんすう"}
-}
+```bash
+pip install "subdub[all]"    # YouTube URL対応（推奨）
+pip install subdub           # 字幕ファイルのみ
 ```
 
-`regex` を上から順に適用し、その後 `literal` を長いキーから適用します。
+開発版:
 
----
-
-## サマリの読み方
-
-```
-ポーズ圧縮で吸収: 57.0 秒
-WSOLA圧縮       : 96/145 （平均 1.23倍 / 最大 1.60倍）
-枠に収まらず    : 5 ブロック（最大 0.53 秒超過）
+```bash
+pip install "subdub[all] @ git+https://github.com/kokiaugust24th-coder/subdub.git"
 ```
 
-- **平均圧縮率が1.3を超える** — 字幕の情報密度が高すぎます。`--max-compress` を上げるか、聞き取りやすさを諦めるかの選択になります
-- **収まらないブロックが1割超** — その字幕は吹き替えに向いていません
+Python 3.10以上。Windows / macOS / Linux で動作を確認しています。
 
-溢れたブロックは、次のブロックと単純加算せずクロスフェードします（二人が同時に喋るのを防ぐため）。次のブロックは定刻に始まります。
+既定の `edge` バックエンドは Microsoft Edge のニューラル音声を使います。無料・APIキー不要ですが、
+**合成時にテキストがMicrosoftのサーバへ送信されます。**
 
 ---
 
@@ -176,32 +323,36 @@ write_wav("dub.wav", result.samples, result.sample_rate)
 print(result.summary())
 ```
 
-TTSエンジンの追加は `Backend` のメソッドを1つ実装するだけです。同期処理はエンジンに依存しません。
+TTSエンジンの追加は `Backend` のメソッドを1つ実装するだけです。同期処理には手を入れる必要がありません。
 
 ---
 
 ## 限界
 
-**同期は解決しましたが、同期と明瞭度のトレードオフは残ります。** 訳文が原語より本質的に長い区間では、何かを犠牲にするしかありません。subdub は `--max-compress` まで圧縮し、それ以上は聞き取れなくなるより溢れさせる方を選びます。YouTubeはこれをもっと手前で解いています——**翻訳の段階で尺に収まる訳文を生成させる**——が、既存の字幕を入力にする限りその手は使えません。
+**同期は解決しましたが、同期と明瞭度のトレードオフは残ります。** 訳文が原語より本質的に長い区間では、
+何かを犠牲にするしかありません。subdub は `--max-compress` まで圧縮し、それ以上は
+聞き取れなくなるより溢れさせる方を選びます。
 
-**画面依存の語りは苦手です。** 「この形は」「ここの傾きに注目」といった解説動画では情報が画面側にあるため、完璧に同期していても字幕を読むほうが速い場合があります。
+YouTubeはこれをもっと手前で解いています——**翻訳の段階で尺に収まる訳文を生成させる**——が、
+既存の字幕を入力にする限りその手は使えません。
 
-**`edge` バックエンドはネットワークが必要**で、テキストがMicrosoftに送信されます。
+**画面依存の語りは苦手です。** 「この形は」「ここの傾きに注目」といった解説動画では
+情報が画面側にあるため、完璧に同期していても字幕を読むほうが速い場合があります。
 
 ---
 
 ## 類似ツール
 
-同種のツールが既にいくつかあります。用途によってはそちらが適します。
+同種のツールが既にあります。用途によってはそちらが適します。
 
-- **[Edge-TTS-Subtitle-Dubbing](https://github.com/fr0stb1rd/Edge-TTS-Subtitle-Dubbing)** — 最も近い。Edge TTS + サンプル単位のtime-slot filling。`audiostretchy` と `librosa` を使用。FFmpeg必須
+- **[Edge-TTS-Subtitle-Dubbing](https://github.com/fr0stb1rd/Edge-TTS-Subtitle-Dubbing)** — 最も近い。FFmpeg必須
 - **[Auto-Synced-Translated-Dubs](https://github.com/RafaelGodoyEbert/Auto-Synced-Translated-Dubs-with-UI)** — 翻訳工程とGUI付き
 - ブラウザ完結型: [SpeechGen](https://speechgen.io/en/subs/), [FreeTTS](https://freetts.org/srt), [Voicertool](https://voicertool.com/subs)
 
-subdub の差分は、ポーズ優先圧縮（圧縮率を低く保てる）、発音辞書、配置検証機構、FFmpeg不要の4点です。
+subdub の差分は、ポーズ優先圧縮・発音辞書・配置検証・FFmpeg不要の4点です。
 
 ---
 
 ## ライセンス
 
-MIT。[LICENSE](LICENSE) を参照してください。
+MIT
