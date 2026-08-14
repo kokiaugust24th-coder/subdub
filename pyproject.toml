@@ -1,0 +1,47 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "subdub"
+version = "1.0.0"
+description = "Turn subtitles into a dubbed audio track that stays in sync with the video, sample-accurately."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [{ name = "subdub contributors" }]
+keywords = ["subtitle", "dubbing", "tts", "srt", "vtt", "youtube", "accessibility"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Topic :: Multimedia :: Sound/Audio :: Speech",
+    "Topic :: Text Processing :: Linguistic",
+]
+
+dependencies = [
+    "numpy>=1.24",
+    "soundfile>=0.12",   # libsndfile>=1.1 で mp3 デコードが可能
+    "edge-tts>=6.1",
+]
+
+[project.optional-dependencies]
+youtube = ["yt-dlp>=2024.1.1"]
+dev = ["pytest>=7.0"]
+all = ["yt-dlp>=2024.1.1"]
+
+[project.scripts]
+subdub = "subdub.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/yourname/subdub"
+Issues = "https://github.com/yourname/subdub/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/subdub"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

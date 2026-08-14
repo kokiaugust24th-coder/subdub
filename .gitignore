@@ -1,0 +1,21 @@
+# 生成物
+*.wav
+*.mp3
+*.srt
+*.vtt
+*.json3
+player.html
+*_report.csv
+fitted/
+compare/
+out/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/

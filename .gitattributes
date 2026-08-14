@@ -1,0 +1,9 @@
+# 環境をまたいでも差分が壊れないよう、テキストはLFに正規化する
+* text=auto eol=lf
+
+# Windows専用スクリプトはCRLFのまま
+*.ps1 text eol=crlf
+
+# バイナリ
+*.wav binary
+*.mp3 binary
